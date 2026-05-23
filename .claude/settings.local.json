@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(node -e \"console.log\\(require\\('discord.js'\\).version\\)\")",
-      "Bash(node -e ' *)"
-    ]
-  }
-}

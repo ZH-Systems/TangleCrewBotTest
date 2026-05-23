@@ -1,0 +1,9 @@
+# Claude Code
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+.env
+node_modules/
