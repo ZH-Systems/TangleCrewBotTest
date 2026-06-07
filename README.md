@@ -12,7 +12,7 @@ A Discord bot built for the **Tangle Crew** clan in [Old School RuneScape](https
 
 | | |
 |---|---|
-| **Discord** | [discord.gg/na6rhxJ3fQ](https://discord.gg/na6rhxJ3fQ) |
+| **Discord** | [https://discord.gg/tanglecrew](https://discord.gg/tanglecrew) |
 | **Wise Old Man** | [wiseoldman.net/groups/12447](https://wiseoldman.net/groups/12447) |
 
 ---
