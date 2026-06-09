@@ -8,9 +8,17 @@ function loadCommands(client) {
 
   for (const file of commandFiles) {
     const command = require(path.join(commandsPath, file));
-    if (command.data && command.execute) {
-      client.commands.set(command.data.name, command);
+    if (!command.data || !command.execute) continue;
+
+    if (command.requiredEnv) {
+      const missing = command.requiredEnv.filter(k => !process.env[k]);
+      if (missing.length > 0) {
+        console.log(`Skipping /${command.data.name}: missing env var(s): ${missing.join(', ')}`);
+        continue;
+      }
     }
+
+    client.commands.set(command.data.name, command);
   }
 
   console.log(`Loaded ${client.commands.size} command(s).`);

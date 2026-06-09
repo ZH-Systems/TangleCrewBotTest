@@ -288,6 +288,8 @@ module.exports = {
 
     await interaction.deferReply();
 
+    console.log(`[spinwheel] Started by ${interaction.user.tag}`);
+
     const raw       = interaction.options.getString('entries');
     const title     = interaction.options.getString('title') ?? 'Wheel Spin';
     const numWin    = interaction.options.getInteger('winners') ?? 1;
@@ -296,19 +298,30 @@ module.exports = {
     const ping      = interaction.options.getString('ping') ?? '';
 
     let entries = parseEntries(raw);
+    console.log(`[spinwheel] Parsed ${entries.length} entries: ${entries.join(', ')}`);
+    console.log(`[spinwheel] title="${title}", winners=${numWin}, shuffle=${doShuffle}, ping="${ping || 'none'}"`);
 
-    if (entries.length < 2)
+    if (entries.length < 2) {
+      console.log('[spinwheel] Aborting: fewer than 2 entries.');
       return interaction.editReply({ content: 'You need at least 2 entries to spin the wheel.' });
+    }
 
-    if (entries.length > 50)
+    if (entries.length > 50) {
+      console.log(`[spinwheel] Aborting: too many entries (${entries.length}).`);
       return interaction.editReply({ content: `Too many entries (${entries.length}). Maximum is 50.` });
+    }
 
-    if (numWin >= entries.length)
+    if (numWin >= entries.length) {
+      console.log(`[spinwheel] Aborting: requested ${numWin} winner(s) for ${entries.length} entries.`);
       return interaction.editReply({
         content: `You asked for ${numWin} winner(s) but only provided ${entries.length} entries.`,
       });
+    }
 
-    if (doShuffle) entries = shuffle(entries);
+    if (doShuffle) {
+      entries = shuffle(entries);
+      console.log(`[spinwheel] Shuffled order: ${entries.join(', ')}`);
+    }
 
     // Pre-pick winner(s)
     const pool    = [...entries];
@@ -317,10 +330,13 @@ module.exports = {
       const idx = Math.floor(Math.random() * pool.length);
       winners.push(pool.splice(idx, 1)[0]);
     }
+    console.log(`[spinwheel] Winner(s): ${winners.join(', ')}`);
 
     const winnerIdx = entries.indexOf(winners[0]);
+    console.log('[spinwheel] Generating spin GIF...');
     const gifBuf    = createSpinGif(entries, winnerIdx);
     const file      = new AttachmentBuilder(gifBuf, { name: 'wheel.gif' });
+    console.log(`[spinwheel] GIF generated (${gifBuf.length} bytes).`);
 
     // Step 1 — send the spinning wheel GIF (no result yet)
     const spinEmbed = new EmbedBuilder()
@@ -328,9 +344,11 @@ module.exports = {
       .setTitle(`🎡 ${title}`)
       .setImage('attachment://wheel.gif');
 
+    console.log('[spinwheel] Sending spin GIF...');
     await interaction.editReply({ embeds: [spinEmbed], files: [file] });
 
     // Step 2 — wait for the GIF to finish playing
+    console.log(`[spinwheel] Waiting ${GIF_TOTAL_MS}ms for GIF to finish...`);
     await sleep(GIF_TOTAL_MS);
 
     // Step 3 — edit the same message to reveal the winner
@@ -356,15 +374,19 @@ module.exports = {
       .setTimestamp();
 
     // Edit the original message — no files needed, GIF attachment persists automatically
+    console.log('[spinwheel] Revealing winner...');
     await interaction.editReply({ embeds: [resultEmbed] });
 
     // Step 4 — Discord only sends @here / @everyone notifications on NEW messages, not edits.
     // Send a minimal follow-up that contains only the ping so notifications fire.
     if (ping) {
+      console.log(`[spinwheel] Sending follow-up ping: ${ping}`);
       await interaction.followUp({
         content:         ping,
         allowedMentions: { parse: ['everyone'] },
       });
     }
+
+    console.log('[spinwheel] Done.');
   },
 };

@@ -1,4 +1,4 @@
-![Tangle Crew Banner](images/TCBanner.jpg)
+![Tangle Crew Banner](images/TCBanner.PNG)
 
 # Tanglebot
 
@@ -14,6 +14,7 @@ A Discord bot built for the **Tangle Crew** clan in [Old School RuneScape](https
 |---|---|
 | **Discord** | [https://discord.gg/tanglecrew](https://discord.gg/tanglecrew) |
 | **Wise Old Man** | [wiseoldman.net/groups/12447](https://wiseoldman.net/groups/12447) |
+| **OSRS Clan Finder** | [https://osrsclanfinder.com/clans/tangle-crew](https://osrsclanfinder.com/clans/tangle-crew) |
 
 ---
 
@@ -50,11 +51,37 @@ Spins an animated prize wheel and picks one or more random winners from a list o
 
 ---
 
-### 📋 `/getdiscids` — Export Member List
+### 💰 `/updatedonations` — Donation Leaderboard
 
-Exports all non-bot server members to a CSV file with their Discord ID, username, and nickname. Useful for building or updating the rank spreadsheet before running `/syncranks`.
+Posts (or updates) a leaderboard message ranking clan members by total donations, and assigns donation tier roles based on configurable GP thresholds.
 
-Requires **Manage Server** permission.
+**When to use it:**
+- Keeping a live, up-to-date donation leaderboard pinned in a channel
+- Automatically granting/revoking donation tier roles as totals change
+
+**How it works:**
+1. Downloads the donation spreadsheet from the configured Google Sheets URL.
+2. Reads the `Name`, `DiscordID`, and `Donated` columns. Rows with the same Discord ID are merged together (their totals are summed) before ranking.
+3. Sorts donors by total donated, highest first.
+4. For each donor, assigns the highest donation tier role they qualify for, plus every tier role below it (tiers stack — a Zenyte donor also keeps Gold and Diamond). Roles for tiers no longer met are removed.
+5. Builds a leaderboard message with a 💰 "Donation High Scores" header, a total donated line, and one line per donor with their tier emoji, mention, and formatted total (e.g. `150M`, `77.5M`, `14,666K`). The top donor's name is shown enlarged.
+6. Posts the leaderboard to the configured channel, or edits the existing leaderboard message(s) in place on subsequent runs (no duplicates). If the leaderboard is too long for one message, it's split across multiple messages, which are also kept in sync on later runs.
+
+Restricted to users with the **Templar** role.
+
+**Setup:**
+
+1. Create a Google Sheet with `Name`, `DiscordID`, and `Donated` columns (see `Tanglebot/example/donations_template.xlsx` for the expected format). `Donated` accepts plain numbers or shorthand like `150M`, `75m`, or `300,000,000`.
+2. Share the sheet: **Share → Anyone with the link → Viewer**.
+3. Set `DONATIONS_SHEET_URL` to the sheet's URL (any Google Sheets link format works — edit, share, or export links are all normalised automatically).
+4. Set `DONATIONS_CHANNEL_ID` to the channel where the leaderboard should be posted.
+5. Optionally set `DONATION_GOLD_THRESHOLD`, `DONATION_DIAMOND_THRESHOLD`, and `DONATION_ZENYTE_THRESHOLD` (defaults: 75M / 150M / 300M).
+6. Optionally set `DONATION_GOLD_ROLE_ID`, `DONATION_DIAMOND_ROLE_ID`, and `DONATION_ZENYTE_ROLE_ID` to have the bot manage tier roles. Leave a tier's role ID blank to skip role management for that tier.
+7. Optionally set `DONATION_EMOJI_GOLD`, `DONATION_EMOJI_DIAMOND`, `DONATION_EMOJI_ZENYTE`, and `DONATION_EMOJI_COINS` to custom emoji IDs for the tier badges and the total donated line.
+
+> **Note:** For role management to work, the bot needs the **Manage Roles** permission and its highest role must be positioned **above** the donation tier roles in Server Settings → Roles.
+
+This command is only loaded if `DONATIONS_SHEET_URL` and `DONATIONS_CHANNEL_ID` are set.
 
 ---
 
@@ -107,7 +134,7 @@ The intake stays disabled unless all three intake environment variables are set,
 
 - [Node.js](https://nodejs.org/) v18 or later
 - A Discord bot token and application — create one at [discord.com/developers](https://discord.com/developers/applications)
-- The Discord bot's **Server Members Intent** enabled in the Developer Portal for `/getdiscids`
+- The Discord bot's **Server Members Intent** enabled in the Developer Portal for `/updatedonations`
 - The Discord bot's **Message Content Intent** enabled in the Developer Portal if using KC/drop proof intake
 
 ### Install
