@@ -1,6 +1,5 @@
 const { Events, MessageFlags } = require('discord.js');
 const { syncCommands } = require('./commandHandler');
-const { restoreReminders } = require('../utils/scheduler');
 const { handleSubmissionMessage, loadSubmissionConfig } = require('../utils/submissionIntake');
 
 function loadEvents(client) {
@@ -12,7 +11,6 @@ function loadEvents(client) {
   client.once(Events.ClientReady, async (c) => {
     console.log(`Logged in as ${c.user.tag}`);
     await syncCommands(client);
-    restoreReminders(client);
   });
 
   client.on(Events.MessageCreate, async (message) => {
