@@ -288,6 +288,8 @@ module.exports = {
 
     await interaction.deferReply();
 
+    console.log(`[spinwheel] Started by ${interaction.user.tag}`);
+
     const raw       = interaction.options.getString('entries');
     const title     = interaction.options.getString('title') ?? 'Wheel Spin';
     const numWin    = interaction.options.getInteger('winners') ?? 1;
@@ -297,16 +299,19 @@ module.exports = {
 
     let entries = parseEntries(raw);
 
-    if (entries.length < 2)
+    if (entries.length < 2) {
       return interaction.editReply({ content: 'You need at least 2 entries to spin the wheel.' });
+    }
 
-    if (entries.length > 50)
+    if (entries.length > 50) {
       return interaction.editReply({ content: `Too many entries (${entries.length}). Maximum is 50.` });
+    }
 
-    if (numWin >= entries.length)
+    if (numWin >= entries.length) {
       return interaction.editReply({
         content: `You asked for ${numWin} winner(s) but only provided ${entries.length} entries.`,
       });
+    }
 
     if (doShuffle) entries = shuffle(entries);
 
@@ -317,6 +322,7 @@ module.exports = {
       const idx = Math.floor(Math.random() * pool.length);
       winners.push(pool.splice(idx, 1)[0]);
     }
+    console.log(`[spinwheel] ${entries.length} entries → Winner(s): ${winners.join(', ')}`);
 
     const winnerIdx = entries.indexOf(winners[0]);
     const gifBuf    = createSpinGif(entries, winnerIdx);
@@ -355,7 +361,6 @@ module.exports = {
       .setFooter({ text: `Spun by ${interaction.user.username}` })
       .setTimestamp();
 
-    // Edit the original message — no files needed, GIF attachment persists automatically
     await interaction.editReply({ embeds: [resultEmbed] });
 
     // Step 4 — Discord only sends @here / @everyone notifications on NEW messages, not edits.

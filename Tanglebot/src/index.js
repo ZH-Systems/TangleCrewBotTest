@@ -19,7 +19,7 @@ if (process.env.DISCORD_SUBMISSION_CHANNEL_EVENT_MAP) {
 
 const client = new Client({
   intents,
-  partials: [Partials.Channel],
+  partials: [Partials.Channel, Partials.Message],
 });
 
 client.commands = new Collection();

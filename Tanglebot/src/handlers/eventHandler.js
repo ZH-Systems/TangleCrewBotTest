@@ -1,5 +1,5 @@
 const { Events, MessageFlags } = require('discord.js');
-const { restoreReminders } = require('../utils/scheduler');
+const { syncCommands } = require('./commandHandler');
 const { handleSubmissionMessage, loadSubmissionConfig } = require('../utils/submissionIntake');
 
 function loadEvents(client) {
@@ -11,7 +11,18 @@ function loadEvents(client) {
 
   client.once(Events.ClientReady, async (c) => {
     console.log(`Logged in as ${c.user.tag}`);
-    restoreReminders(client);
+    await syncCommands(client);
+
+    const adminLogChannelId = process.env.ADMIN_LOG_CHANNEL_ID;
+    const ownerRoleId = process.env.OWNER_ROLE_ID;
+    if (adminLogChannelId) {
+      try {
+        const channel = await client.channels.fetch(adminLogChannelId);
+        await channel.send(`<@&${ownerRoleId}> Bot is online and ready.`);
+      } catch (err) {
+        console.error('Failed to send startup message to admin log channel:', err);
+      }
+    }
   });
 
   client.on(Events.MessageCreate, async (message) => {
@@ -19,6 +30,18 @@ function loadEvents(client) {
       await handleSubmissionMessage(message, submissionConfig);
     } catch (err) {
       console.error('Submission intake error:', err);
+    }
+  });
+
+  client.on(Events.MessageUpdate, async (_oldMessage, newMessage) => {
+    const channelId = process.env.ANNOUNCEMENT_CHANNEL_ID;
+    if (!channelId) return;
+    if (newMessage.channelId !== channelId) return;
+    if (newMessage.content !== '[Original Message Deleted]') return;
+    try {
+      await newMessage.delete();
+    } catch (err) {
+      console.error('Failed to delete stale announcement message:', err);
     }
   });
 
