@@ -71,13 +71,26 @@ Posts the accepted KC/drop proof formats or shows the latest accepted proof subm
 
 Both subcommands support a `private` option to show the response only to the person running the command. By default, responses are public so staff can post the format directly in a submission channel.
 
+### `/kc` — Start or End Proof Intake
+
+Controls when the bot should accept a KC or drop proof from a specific user.
+
+**Subcommands:**
+
+| Subcommand | Description |
+|------------|-------------|
+| `start` | Opens a proof session for the user in the current mapped submission channel |
+| `end` | Closes the user's active proof session |
+
+`/kc start` must be run in a configured submission channel. Once started, only that user's next valid KC or drop proof message in the same channel will be processed. After a successful submission, the session closes automatically.
+
 ---
 
 ## Message Features
 
 ### KC and Drop Proof Intake
 
-When configured, Tanglebot watches selected Discord submission channels and forwards valid proof posts to the configured Supabase intake endpoint for manual review on the site.
+When configured, Tanglebot accepts KC and drop proof posts only after a user runs `/kc start` in a mapped submission channel. The bot then processes that user's next valid proof message in the same channel and forwards it to the configured Supabase intake endpoint for manual review on the site.
 
 Supported KC format:
 
@@ -97,7 +110,7 @@ Item Dropped: <item name>
 
 Each submission must include exactly one image attachment. For ending KC submissions, `Starting or Ending: Ending`, `Ending Kill Count: 1234`, or `Kill Count: 1234` are accepted.
 
-The intake stays disabled unless all three intake environment variables are set, so existing slash-command functionality can run without site integration configured.
+Users without an active `/kc start` session are ignored. Validation failures keep the session open so the user can fix the format and resubmit. The intake stays disabled unless all three intake environment variables are set, so existing slash-command functionality can run without site integration configured.
 
 ---
 

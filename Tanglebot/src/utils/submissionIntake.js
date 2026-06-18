@@ -1,6 +1,7 @@
 const { readJson, writeJson } = require('./db');
 
 const LAST_SUBMISSION_FILE = 'last-submission.json';
+const ACTIVE_SESSION_FILE = 'active-kc-sessions.json';
 
 const REQUIRED_ENV_KEYS = [
   'DISCORD_SUBMISSION_CHANNEL_EVENT_MAP',
@@ -192,6 +193,35 @@ function getLastAcceptedSubmission() {
   return readJson(LAST_SUBMISSION_FILE);
 }
 
+function getActiveSessions() {
+  const sessions = readJson(ACTIVE_SESSION_FILE);
+  return sessions && typeof sessions === 'object' ? sessions : {};
+}
+
+function getActiveSession(userId) {
+  if (!userId) return null;
+  const sessions = getActiveSessions();
+  return sessions[userId] ?? null;
+}
+
+function setActiveSession(session) {
+  const sessions = getActiveSessions();
+  sessions[session.userId] = session;
+  writeJson(ACTIVE_SESSION_FILE, sessions);
+  return session;
+}
+
+function clearActiveSession(userId) {
+  if (!userId) return false;
+
+  const sessions = getActiveSessions();
+  if (!sessions[userId]) return false;
+
+  delete sessions[userId];
+  writeJson(ACTIVE_SESSION_FILE, sessions);
+  return true;
+}
+
 function saveLastAcceptedSubmission({ attachment, eventId, isDrop, message, parsed }) {
   const submission = {
     acceptedAt: new Date().toISOString(),
@@ -216,8 +246,16 @@ function saveLastAcceptedSubmission({ attachment, eventId, isDrop, message, pars
 async function handleSubmissionMessage(message, config) {
   if (!config.enabled || message.author.bot) return;
 
+  const session = getActiveSession(message.author.id);
+  if (!session) return;
+  if (session.channelId !== message.channelId) return;
+
   const eventId = config.channelEventMap[message.channelId];
-  if (!eventId) return;
+  if (!eventId || eventId !== session.eventId) {
+    clearActiveSession(message.author.id);
+    await message.reply('Your active KC session is no longer valid for this channel. Run `/kc start` again before submitting proof.');
+    return;
+  }
 
   const parsed = parseSubmissionBody(message.content);
   const isKc = isKcSubmission(parsed);
@@ -262,6 +300,7 @@ async function handleSubmissionMessage(message, config) {
       message,
       parsed,
     });
+    clearActiveSession(message.author.id);
 
     console.log(`Submission forwarded: type=${isDrop ? 'drop' : 'kc'} message=${message.id} channel=${message.channelId} event=${eventId}`);
 
@@ -283,8 +322,11 @@ async function handleSubmissionMessage(message, config) {
 
 module.exports = {
   SUBMISSION_FORMAT_MESSAGE,
+  clearActiveSession,
+  getActiveSession,
   getLastAcceptedSubmission,
   handleSubmissionMessage,
   loadSubmissionConfig,
   parseSubmissionBody,
+  setActiveSession,
 };

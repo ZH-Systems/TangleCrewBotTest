@@ -4,6 +4,7 @@ const { handleSubmissionMessage, loadSubmissionConfig } = require('../utils/subm
 
 function loadEvents(client) {
   const submissionConfig = loadSubmissionConfig();
+  client.submissionConfig = submissionConfig;
   if (submissionConfig.enabled) {
     console.log('Discord submission intake enabled.');
   }
