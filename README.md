@@ -111,14 +111,12 @@ Controls when the bot should accept a KC or drop proof from a specific user.
 
 `/kc start` must be run in a configured submission channel. Once started, only that user's messages in the same channel count as submission attempts. The session stays open across successful starting KC and drop submissions until the user runs `/kc end`, but it expires automatically after 30 minutes if left idle. `/kc end` then waits for one valid ending KC proof from that same user and closes the session afterward, and that ending mode also expires after 30 minutes.
 
-### `/channelmap` — Generate Intake Mapping
-
-Builds a ready-to-copy `DISCORD_SUBMISSION_CHANNEL_EVENT_MAP` snippet for the current channel or a selected text channel.
+### `/channelmap` — Show Channel ID
 
 The command replies ephemerally with:
 - the channel mention and ID
-- a JSON pair such as `{"123456789012345678":"REPLACE_WITH_EVENT_ID"}`
-- a full env var example ready to paste into `.env`
+- the value to paste into `discord_submission_channel_id`
+- a reminder that routing now comes from the web panel / Supabase event row
 
 ---
 
@@ -126,7 +124,7 @@ The command replies ephemerally with:
 
 ### KC and Drop Proof Intake
 
-When configured, Tanglebot accepts KC and drop proof posts only after a user runs `/kc start` in a mapped submission channel. Only messages from that same user in that same channel count as submission attempts. Starting KC submissions and drop proofs can continue while the start session remains active. After the user runs `/kc end`, the bot waits for one valid ending KC proof from that same user, forwards it to the configured Supabase intake endpoint for manual review on the site, and then closes the session. Any active KC session that sits open for 30 minutes is automatically removed.
+When configured, Tanglebot accepts KC and drop proof posts only after a user runs `/kc start` in a submission channel that is linked to an event through Supabase. The bot resolves the event by querying `events.discord_submission_channel_id`, caches the result briefly, and ignores channels with no configured event. Only messages from that same user in that same channel count as submission attempts. Starting KC submissions and drop proofs can continue while the start session remains active. After the user runs `/kc end`, the bot waits for one valid ending KC proof from that same user, forwards it to the configured Supabase intake endpoint for manual review on the site, and then closes the session. Any active KC session that sits open for 30 minutes is automatically removed.
 
 Supported KC format:
 
@@ -146,7 +144,7 @@ Item Dropped: <item name>
 
 Each submission must include exactly one image attachment. For ending KC submissions, `Starting or Ending: Ending`, `Ending Kill Count: 1234`, or `Kill Count: 1234` are accepted.
 
-Users without an active `/kc start` session are ignored. Validation failures keep the session open so the user can fix the format and resubmit. `/kc start` accepts starting KC submissions and drop proofs. `/kc end` accepts only an ending KC submission and then closes the session. Both start and end sessions expire automatically after 30 minutes. The intake stays disabled unless all three intake environment variables are set, so existing slash-command functionality can run without site integration configured.
+Users without an active `/kc start` session are ignored. Validation failures keep the session open so the user can fix the format and resubmit. `/kc start` accepts starting KC submissions and drop proofs. `/kc end` accepts only an ending KC submission and then closes the session. Both start and end sessions expire automatically after 30 minutes. If the Supabase channel lookup fails, the bot logs the error and asks the user to retry instead of crashing. The intake stays disabled unless all four intake environment variables are set, so existing slash-command functionality can run without site integration configured.
 
 ---
 
@@ -185,7 +183,7 @@ cp .env.example .env
 ```
 
 ```
-DISCORD_TOKEN=your_bot_token
+DISCORD_BOT_TOKEN=your_bot_token
 CLIENT_ID=your_application_id
 CLAN_ID=your_server_id
 OWNER_ID=your_discord_user_id
@@ -196,8 +194,9 @@ COORDINATOR_ROLE_ID=your_coordinator_role_id
 ANNOUNCEMENT_CHANNEL_ID=your_announcement_channel_id
 
 # Optional proof intake
-DISCORD_SUBMISSION_CHANNEL_EVENT_MAP={"submission_channel_id":"site_event_id"}
-SUPABASE_DISCORD_KC_INTAKE_URL=https://your-project.supabase.co/functions/v1/discord-kc-intake
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+SUPABASE_DISCORD_KC_INTAKE_URL=https://your-project-ref.supabase.co/functions/v1/discord-manual-kc-intake
 DISCORD_KC_INTAKE_SECRET=your_shared_intake_secret
 ```
 

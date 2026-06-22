@@ -1,15 +1,20 @@
+const axios = require('axios');
 const { readJson, writeJson } = require('./db');
 
 const LAST_SUBMISSION_FILE = 'last-submission.json';
 const ACTIVE_SESSION_FILE = 'active-kc-sessions.json';
 const KC_SESSION_DURATION_MS = 30 * 60 * 1000;
 const SESSION_SWEEP_INTERVAL_MS = 60 * 1000;
+const CHANNEL_EVENT_CACHE_TTL_MS = 60 * 1000;
 
 const REQUIRED_ENV_KEYS = [
-  'DISCORD_SUBMISSION_CHANNEL_EVENT_MAP',
+  'SUPABASE_URL',
+  'SUPABASE_SERVICE_ROLE_KEY',
   'SUPABASE_DISCORD_KC_INTAKE_URL',
   'DISCORD_KC_INTAKE_SECRET',
 ];
+
+const channelEventCache = new Map();
 
 const SUBMISSION_FORMAT_MESSAGE = [
   '**KC proof format**',
@@ -147,19 +152,63 @@ function loadSubmissionConfig(env = process.env) {
     throw new Error(`Submission intake is partially configured. Missing: ${missing.join(', ')}`);
   }
 
-  let channelEventMap;
-  try {
-    channelEventMap = JSON.parse(env.DISCORD_SUBMISSION_CHANNEL_EVENT_MAP);
-  } catch (error) {
-    throw new Error('DISCORD_SUBMISSION_CHANNEL_EVENT_MAP must be valid JSON.');
-  }
-
   return {
-    channelEventMap,
     enabled: true,
     intakeSecret: env.DISCORD_KC_INTAKE_SECRET,
     intakeUrl: env.SUPABASE_DISCORD_KC_INTAKE_URL,
+    supabaseServiceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
+    supabaseUrl: env.SUPABASE_URL.replace(/\/+$/, ''),
   };
+}
+
+function getCachedChannelEvent(channelId) {
+  const cached = channelEventCache.get(channelId);
+  if (!cached) return undefined;
+  if (cached.expiresAt <= Date.now()) {
+    channelEventCache.delete(channelId);
+    return undefined;
+  }
+  return cached.eventId;
+}
+
+function setCachedChannelEvent(channelId, eventId) {
+  channelEventCache.set(channelId, {
+    eventId,
+    expiresAt: Date.now() + CHANNEL_EVENT_CACHE_TTL_MS,
+  });
+}
+
+async function resolveEventIdForChannel(channelId, config) {
+  const cached = getCachedChannelEvent(channelId);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  try {
+    const response = await axios.get(`${config.supabaseUrl}/rest/v1/events`, {
+      headers: {
+        apikey: config.supabaseServiceRoleKey,
+        Authorization: `Bearer ${config.supabaseServiceRoleKey}`,
+      },
+      params: {
+        select: 'id',
+        discord_submission_channel_id: `eq.${channelId}`,
+        limit: 1,
+      },
+      timeout: 10000,
+    });
+
+    const eventId = response.data?.[0]?.id ?? null;
+    setCachedChannelEvent(channelId, eventId);
+    return eventId;
+  } catch (error) {
+    const details = error.response?.data ?? error.message;
+    console.error('Failed to resolve Discord submission channel via Supabase:', {
+      channelId,
+      details,
+    });
+    throw new Error('Unable to verify whether this channel is configured for submissions right now.');
+  }
 }
 
 async function forwardSubmission({ attachment, config, eventId, message, parsed }) {
@@ -343,10 +392,19 @@ async function handleSubmissionMessage(message, config) {
   if (!session) return;
   if (session.channelId !== message.channelId) return;
 
-  const eventId = config.channelEventMap[message.channelId];
+  let eventId;
+  try {
+    eventId = await resolveEventIdForChannel(message.channelId, config);
+  } catch {
+    await message.reply('Submission routing is temporarily unavailable. Please try again in a moment.');
+    return;
+  }
+
   if (!eventId || eventId !== session.eventId) {
     clearActiveSession(message.author.id);
-    await message.reply('Your active KC session is no longer valid for this channel. Run `/kc start` again before submitting proof.');
+    if (eventId) {
+      await message.reply('Your active KC session no longer matches this channel configuration. Run `/kc start` again before submitting proof.');
+    }
     return;
   }
 
@@ -427,9 +485,11 @@ async function handleSubmissionMessage(message, config) {
 }
 
 module.exports = {
+  CHANNEL_EVENT_CACHE_TTL_MS,
   KC_SESSION_DURATION_MS,
   SUBMISSION_FORMAT_MESSAGE,
   clearActiveSession,
+  resolveEventIdForChannel,
   getActiveSession,
   getLastAcceptedSubmission,
   handleSubmissionMessage,
