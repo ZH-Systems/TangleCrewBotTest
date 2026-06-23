@@ -7,3 +7,6 @@
 - Added local runtime override support for `SUPABASE_DISCORD_KC_INTAKE_URL` plus admin-only `/submission showintakeurl` and `/submission setintakeurl` commands.
 - Updated bot token/env documentation and added the new Supabase lookup variables to the README and `.env.example`.
 - Switched the runtime lookup from `events.discord_submission_channel_id` to `event_discord_channels` using `channel_kind = submission` and `channel_id`.
+- Removed the `/kc` session gate so mapped submission channels are now always listened to automatically.
+- Changed message intake to process valid KC/drop proofs directly from site-configured channels and only reply to likely malformed submission attempts.
+- Updated README copy to document automatic channel listening instead of slash-command-based proof sessions.

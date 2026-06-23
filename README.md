@@ -102,19 +102,6 @@ Posts the accepted KC/drop proof formats or shows the latest accepted proof subm
 
 `showintakeurl` and `setintakeurl` are admin-only and reply ephemerally. `setintakeurl` writes a local override file on the bot so the intake endpoint can be changed without editing `.env` or restarting the process.
 
-### `/kc` — Start or End Proof Intake
-
-Controls when the bot should accept a KC or drop proof from a specific user.
-
-**Subcommands:**
-
-| Subcommand | Description |
-|------------|-------------|
-| `start` | Opens a starting KC/drop proof session for the user in the current mapped submission channel |
-| `end` | Switches the user's active session into ending-KC mode for one final submission |
-
-`/kc start` must be run in a configured submission channel. Once started, only that user's messages in the same channel count as submission attempts. The session stays open across successful starting KC and drop submissions until the user runs `/kc end`, but it expires automatically after 30 minutes if left idle. `/kc end` then waits for one valid ending KC proof from that same user and closes the session afterward, and that ending mode also expires after 30 minutes.
-
 ### `/channelmap` — Show Channel ID
 
 The command replies ephemerally with:
@@ -128,7 +115,7 @@ The command replies ephemerally with:
 
 ### KC and Drop Proof Intake
 
-When configured, Tanglebot accepts KC and drop proof posts only after a user runs `/kc start` in a submission channel that is linked to an event through Supabase. The bot resolves the event by querying `event_discord_channels` for rows where `channel_kind = submission` and `channel_id` matches the Discord channel, caches the result briefly, and ignores channels with no configured event. Only messages from that same user in that same channel count as submission attempts. Starting KC submissions and drop proofs can continue while the start session remains active. After the user runs `/kc end`, the bot waits for one valid ending KC proof from that same user, forwards it to the configured Supabase intake endpoint for manual review on the site, and then closes the session. Any active KC session that sits open for 30 minutes is automatically removed.
+When configured, Tanglebot accepts KC and drop proof posts automatically in any Discord channel that is linked to an event through Supabase. The bot resolves the event by querying `event_discord_channels` for rows where `channel_kind = submission` and `channel_id` matches the Discord channel, caches the result briefly, and ignores channels with no configured event. Valid submissions are forwarded to the configured Supabase intake endpoint for manual review on the site without requiring a slash command first.
 
 Supported KC format:
 
@@ -148,7 +135,7 @@ Item Dropped: <item name>
 
 Each submission must include exactly one image attachment. For ending KC submissions, `Starting or Ending: Ending`, `Ending Kill Count: 1234`, or `Kill Count: 1234` are accepted.
 
-Users without an active `/kc start` session are ignored. Validation failures keep the session open so the user can fix the format and resubmit. `/kc start` accepts starting KC submissions and drop proofs. `/kc end` accepts only an ending KC submission and then closes the session. Both start and end sessions expire automatically after 30 minutes. If the Supabase channel lookup fails, the bot logs the error and asks the user to retry instead of crashing. The intake stays disabled unless all four intake environment variables are set, so existing slash-command functionality can run without site integration configured.
+Messages in configured submission channels are only treated as submission attempts when they contain an image attachment or recognizable proof fields, so ordinary chatter is ignored. Validation failures ask the user to resubmit using the required format. If the Supabase channel lookup fails, the bot logs the error and asks the user to retry instead of crashing. The intake stays disabled unless all four intake environment variables are set, so existing slash-command functionality can run without site integration configured.
 
 ---
 
